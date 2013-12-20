@@ -14,3 +14,4 @@ struct pseudo_hdr { /* See RFC 793 Pseudo Header */
 static int fd;
 static struct sockaddr_in sa;
 static int optval=1;
+int send_rst(char *);

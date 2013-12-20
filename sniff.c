@@ -41,10 +41,14 @@ int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	
 	int verdict = send_data(pdata);
 	
-	if(verdict)
+	 if(verdict)
 		return nfq_set_verdict_mark(qh, id, NF_REPEAT, 1, (u_int32_t)pdata_len, pdata);
 	else
+	{
+		printf("drop a packet\n");
+		send_rst(pdata);
 		return nfq_set_verdict_mark(qh, id, NF_DROP, 1, (u_int32_t)pdata_len, pdata);
+	}
 }
 
 void monitor()
@@ -131,7 +135,7 @@ void monitor()
  */
 int init_sqlite()
 {
-    char* dbpath="/home/wutao/FBAC/config/fbac.db";
+    char* dbpath="fbac.db";
     char *zErrMsg = 0;
     int rc;
     //open the database file.If the file is not exist,it will create a file.

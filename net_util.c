@@ -223,7 +223,7 @@ printf("keywords match\n");
 printf("keywords match\n");
 			return 0;
 }
-		if(c_info.user_id[0]!='\0')
+		//if(c_info.user_id[0]!='\0')
 			n = find_db(c_info.user_id, c_info.s_id, c_info.p_type, c_info.r_id);
 		if(n)
 		{

@@ -98,19 +98,25 @@ static void add_rule()
 	char userid[MAXWORD];	
 	char subjectid[MAXWORD];	
 	char resourceid[MAXWORD];	
-	char type;
-	int type_num;
+	char type[MAXWORD];
+	int type_num=0;
 	sprintf(group1, "%ld", time(NULL));
 	strcpy(group2, group1);
 	strcat(group2, "u");
 	strcpy(group3, group1);
 	strcat(group3, "o");
 	bzero(subjectid, MAXWORD);
-	scanf("%s %s %c %s", userid, subjectid, &type, resourceid);
-	if(type == '*')
+	scanf("%s %s %s %s", userid, subjectid, &type, resourceid);
+	char* res_type=type;
+	if(type[0] == '*')
 		type_num = 0;
 	else
-		type_num = type - '0';
+		while(*res_type!='\0')
+		{
+			type_num =type_num*10+(*res_type - '0');
+			res_type++;
+		}
+	printf("type=%d\n",type_num);
 	printf("RULE OK\n");
 	printf("%s %s %s\n", userid, subjectid, resourceid);
 	if(resourceid[0] != '*')
@@ -152,7 +158,7 @@ void* input(void *arg)
 	while(1)
 	{
 		 printf("\n\n");
-        printf("/*************************************************************\\\n");
+        printf("/*****************************Changed***************************\\\n");
         printf(" Please follow the command below to add rules and keywords. \n");
         printf(" -----------------------------------------------------------\n");
         printf(" RULE < userid subjectid type resouceid \n");

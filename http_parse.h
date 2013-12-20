@@ -17,7 +17,7 @@
 	#define CONTENT_LENGTH 3
 	#define REFERER 4
 #endif
-
+#define DEBUG
 struct line {
   char *field;
   char *value;
@@ -34,6 +34,7 @@ static int content_length;  //http header field
 
 struct HTTP http;
 struct connection_info c_info;
+struct cnn_news_info cn_info;
 int processhttp(char*, int);
 
 extern void regex_match(char*, char*, char**, int*);

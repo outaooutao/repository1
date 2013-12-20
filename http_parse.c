@@ -74,15 +74,17 @@ void _init_c_info()
 
 int _page_type_(char *path)
 {
+	if(strstr(path,"like"))
+		return LIKE;
 	if(strstr(path, "notes"))
 		return NOTE;
-	if(strstr(path, "photo"))
+	if(strstr(path, "photo")||strstr(path, "Photo"))
 		return PHOTO;
 	if(strstr(path, "media_set"))
 		return MEDIA_SET;
 	if(strstr(path, "friends"))
 		return FRIEND;
-	if(strstr(path, "add_friend"))
+	if(strstr(path, "add_friend")||strstr(path,"ajax/eh.php"))
 		return ADD_FRIEND;
 	if(strstr(path, "edit"))
 		return EDIT_NOTE;
@@ -90,6 +92,31 @@ int _page_type_(char *path)
 		return COMMENT;
 	if(strstr(path, "updatestatus"))
 		return STATUS;
+	if(strstr(path,"media/saveunpublished"))
+		return UPLOAD_PHOTO;
+	if(strstr(path,"events"))
+        {
+                if(strstr(path,"join"))
+                return JOIN_EVENT;
+                else
+		return EVENT;
+        }
+	if(strstr(path,"share"))
+		return SHARE;
+	if(strstr(path,"pages/fan_status"))
+		return LIKE_PAGE;
+	if(strstr(path,"search"))
+		return SEARCH;
+	if(strstr(path,"groups/membership/r2j"))
+		return JOIN_GROUP;
+	if(strstr(path,"groups/create_post"))
+		return CREATE_GROUP;
+	if(strstr(path,"mercury/send_messages"))
+		return CHAT;
+	if(strstr(path,"video/upload"))
+		return UPLOAD_VIDEO;
+	if(strstr(path,"plan")&&strstr(path,"create"))
+		return CREATE_EVENT; 
 	return 0;
 }
 
@@ -102,13 +129,13 @@ void _print_c_info()
 
 void _url_parse(char * url)
 {
-	#ifdef DEBUG
+    #ifdef DEBUG
 	printf("............url = %s.........\n", url);
 	#endif
 	char *pos;
 	int len=0;
 	char *path;
-	
+
 	//parse url
 	parseURL(url, &storage);
 	storage.path.start += 1;  //remove '/'
@@ -121,7 +148,70 @@ void _url_parse(char * url)
 		c_info.p_type = _page_type_(path);
 
 	//modify me, stupid implemention of s_id
-	if((pos = strchr(path, '/')) == strrchr(path, '/'))
+	int path_len;
+	path_len=strlen(path);
+	int i=-1;
+	int r_id_len=0;
+	char* temp;
+	if(c_info.p_type==EVENT)
+	{
+		if(path[path_len-1]>='/'&&path[path_len-2]>='0'&&path[path_len-2]<='9')
+		{
+			i=path_len-3;
+			r_id_len=1;
+		}
+	}
+	else if(c_info.p_type==NOTE)
+	{
+		if(path[path_len-1]>='0'&&path[path_len-1]<='9')
+		{
+			i=path_len-2;
+			r_id_len=1;
+		}
+	}
+	while(path[i]>='0'&&path[i]<='9'&&i>=0)
+	{
+		i--;
+		r_id_len++;
+	}
+	if(r_id_len>10&&r_id_len<52)
+	{	
+		temp=path+(i+1);
+		strncpy(c_info.r_id,temp,r_id_len);
+		c_info.r_id[r_id_len]='\0';
+	}
+
+
+
+
+	if(!strncmp(path+(strlen(path)-6),"_n.jpg",6))
+	{
+		printf("matched jpg\n");
+		int resource_id_length;
+		char* resource_id;
+		char* position;
+		position = path + strlen(path) - 7;
+		while(*position!='_'&& *position!='/'){
+			position--;
+		}
+		char* ptemp=position;
+		position--;
+		while(*position!='_'&& *position!='/'){
+			 position--;
+		}
+		if(*position == '_'){
+			position++;
+			resource_id = position;
+			resource_id_length = ptemp - position;
+			printf("length=%d\n",resource_id_length);
+			memcpy(c_info.r_id,resource_id,resource_id_length);
+			c_info.r_id[resource_id_length]='\0';
+			printf("%s\n",c_info.r_id);
+		}
+		
+		FREE(path);
+	}
+	else if((pos = strchr(path, '/')) == strrchr(path, '/'))
 	{
 		if(!pos)
 		{
@@ -152,16 +242,91 @@ void _url_parse(char * url)
 	if(storage.query.end != storage.query.start)
 	{
 		char * query = readURLField(url, storage.query);
+		if(c_info.p_type == 0)
+		{
+			if(strstr(query, "sk=nf"))
+				c_info.p_type = NEWSFEED;
+			if(strstr(query, "sk=welcome"))
+				c_info.p_type = WELCOME;
+		}
 		qs_scanvalue("__user", query, c_info.user_id, sizeof(c_info.user_id));
 		qs_scanvalue("q", query, c_info.comment, sizeof(c_info.comment));
+        char media_temp[100];
+               char* photo_data;
 		switch(c_info.p_type)
 		{
+                        case SHARE:
+                                if(c_info.s_id[0]=='\0')
+				qs_scanvalue("profile_id", query, c_info.s_id, sizeof(c_info.s_id));
+                                if(c_info.r_id[0]=='\0')
+				qs_scanvalue("p[0]", query, c_info.r_id, sizeof(c_info.r_id));
+                                if(c_info.r_id[0]!='\0'&&!strcmp(c_info.r_id,c_info.s_id))
+                                {
+                                memset(c_info.r_id,0,sizeof(c_info.r_id));
+				qs_scanvalue("p[1]", query, c_info.r_id, sizeof(c_info.r_id));
+                                }
+                                break; 
 			case MEDIA_SET:
-				qs_scanvalue("set", query, c_info.r_id, sizeof(c_info.r_id));
+				qs_scanvalue("set", query, media_temp, sizeof(media_temp));
+			    char* media_start=strchr(media_temp,'.');
+				media_start++;
+				char* media_end=strchr(media_start,'.');
+				int media_len=media_end-media_start;
+			    memcpy(c_info.r_id,media_start,media_len);
+				c_info.r_id[media_len]='\0';
 				break;
 			case PHOTO:
+				photo_data=(char*)malloc(300);
+				photo_data[0]='\0';
+                                printf("OK\n");
+				qs_scanvalue("data", query, photo_data, 300);
+				char* photo_rid=strstr(photo_data,"fbid");
+				char* photo_set=strstr(photo_data,"set");
+
+				if(photo_data[0]!='\0'&&photo_rid&&photo_set)
+				{
+			        printf("data:%s\n",photo_data);	
+				printf("OK\n");
+                             
+				photo_rid+=5;
+				if(*photo_rid==':')
+                                {
+				printf("OK\n");
+                                    photo_rid+=2;
+				printf("OK First\n");
+                                    char* photo_rid_end= strchr(photo_rid,'"');
+				    int photo_rid_len=photo_rid_end-photo_rid;
+				    printf("rid_len is :%d\n",photo_rid_len);
+                                    if(photo_rid_len>0)
+                                    {                         
+                                    memcpy(c_info.r_id,photo_rid,photo_rid_len);
+				    c_info.r_id[photo_rid_len]='\0';
+                                    }
+                                }
+                                char* photo_sid=strchr(photo_set,'.');
+				photo_sid++;
+				if(*photo_sid>='0'&&*photo_sid<='9')
+                                {
+                               
+                                    char* photo_sid_end= strchr(photo_sid,'.');
+				    int photo_sid_len=photo_sid_end-photo_sid;
+                                    if(photo_sid_len>0)
+                                    {                         
+                                    memcpy(c_info.s_id,photo_sid,photo_sid_len);
+				    c_info.r_id[photo_sid_len]='\0';
+                                    }
+                               }
+                               }
+                                free(photo_data);
+                               if(c_info.r_id[0]=='\0')
 				qs_scanvalue("fbid", query, c_info.r_id, sizeof(c_info.r_id));
+                               
 				break;
+			case UPLOAD_PHOTO:
+			    qs_scanvalue("target_id",query,c_info.s_id,sizeof(c_info.s_id));
+		       break;
+			case SEARCH:
+			    qs_scanvalue("value",query,c_info.comment,sizeof(c_info.comment));
 		}
 		FREE(query);
 	}
@@ -170,8 +335,11 @@ void _url_parse(char * url)
 int on_url(http_parser* _, const char* at, size_t length) {
 	(void)_;
 	
-	if((int)length > 300 || (int)length <2) 
+	if((int)length > 500 || (int)length <2) 
+        {
+                printf("too long:%d\n",(int)length);
 		return -1;
+        }
 	memcpy(http.url, at, (int)length);
 	http.url[(int)length] = '\0';
 
@@ -200,6 +368,7 @@ int on_header_value(http_parser* _, const char* at, size_t length) {
 					memcpy(c_info.user_id, start+7, len);
 					c_info.user_id[len] = '\0';
 				}
+					
 			}
 			//memcpy(http.cookie, at, (int)length);
 			//http.cookie[(int)length] = '\0';
@@ -209,6 +378,7 @@ int on_header_value(http_parser* _, const char* at, size_t length) {
 			break;
 		case REFERER:
 			//fetch s_id
+		   /*
 			if(c_info.user_id[0] == '\0')
 			{
 				char *url = (char *)malloc((int)length+1);
@@ -217,8 +387,15 @@ int on_header_value(http_parser* _, const char* at, size_t length) {
 				_url_parse(url);
 				FREE(url);
 			}
+			*/
 			break;
 	}
+					if((c_info.p_type==WELCOME||c_info.p_type==NEWSFEED)&&c_info.s_id[0] =='\0')
+					{
+						int len =strlen(c_info.user_id);
+						memcpy(c_info.s_id,c_info.user_id , len);
+						c_info.s_id[len]= '\0';
+					}
 //	printf( "%.*s\n", (int)length, at);
 //
 //	CURRENT_LINE->value = (char *)malloc(length+1);
@@ -239,9 +416,11 @@ int on_header_value(http_parser* _, const char* at, size_t length) {
 
 int on_body(http_parser* _, const char* at, size_t length) {
 	(void)_;
+printf("on_body is called\n");
 	con_len = (int)length;
 	char *title;
-
+	char *chat_sid;
+    
 	//analysis
 	if(c_info.user_id[0] == '\0')
 	{
@@ -250,6 +429,18 @@ int on_body(http_parser* _, const char* at, size_t length) {
 	}
 	switch(c_info.p_type)
 	{
+                case CREATE_EVENT:
+			qs_scanvalue("title", at, c_info.comment, sizeof(c_info.comment));
+                        int title_len=strlen(c_info.comment);
+                        int detail_len=sizeof(c_info.comment)-title_len;
+                        char* detail=(char*)malloc(detail_len);
+			qs_scanvalue("details", at, detail, detail_len-1);
+                        strcat(c_info.comment,detail);
+                        free(detail);
+                        break;
+                case JOIN_EVENT:
+			qs_scanvalue("eid", at, c_info.r_id, sizeof(c_info.r_id));
+                        break;
 		case COMMENT:
 			qs_scanvalue("comment_text", at, c_info.comment, sizeof(c_info.comment));
 			break;
@@ -258,12 +449,41 @@ int on_body(http_parser* _, const char* at, size_t length) {
 			break;
 		case NOTE:
 			title = (char *)malloc(30);
-			qs_scanvalue("title", at, title, sizeof(title));
+			qs_scanvalue("title", at, title, 30);
 			qs_scanvalue("note_content", at, c_info.comment, sizeof(c_info.comment));
 			strcat(c_info.comment, title);
+ 			free(title);
 			break;
 		case STATUS:
 			qs_scanvalue("xhpc_message_text", at, c_info.comment, sizeof(c_info.comment));
+			break;
+		case SHARE:
+                        if(c_info.s_id[0]=='\0')
+			qs_scanvalue("friendTarget", at, c_info.s_id, sizeof(c_info.s_id));
+			qs_scanvalue("message_text", at, c_info.comment, sizeof(c_info.comment));
+			break;
+		case LIKE:
+			qs_scanvalue("fbid", at, c_info.r_id, sizeof(c_info.r_id));	
+			if(c_info.r_id[0]=='\0')
+			qs_scanvalue("ft_ent_identifier", at, c_info.r_id, sizeof(c_info.r_id));
+			break;
+        case LIKE_PAGE:
+			qs_scanvalue("fbpage_id", at, c_info.s_id, sizeof(c_info.s_id));
+			break;
+        case JOIN_GROUP:
+			printf("join a group\n");
+			qs_scanvalue("group_id", at, c_info.s_id, sizeof(c_info.s_id));
+			break;
+        case CREATE_GROUP:
+			qs_scanvalue("name", at, c_info.comment, sizeof(c_info.comment));
+			break;
+        case CHAT:
+			chat_sid=(char*)malloc(25);
+			qs_scanvalue("message_batch[0][specific_to_list][0]", at, chat_sid, 25);
+			memcpy(c_info.s_id, chat_sid+5,strlen(chat_sid)-5);
+            c_info.s_id[strlen(chat_sid)-5]='\0';
+			qs_scanvalue("message_batch[0][body]", at, c_info.comment, sizeof(c_info.comment));
+                        free(chat_sid);
 			break;
 	}
 	

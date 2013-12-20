@@ -7,7 +7,7 @@ PTHREAD = -lpthread
 SQLITE = -lsqlite3
 QUEUE = -lnetfilter_queue
 GLIB = `pkg-config --cflags --libs glib-2.0` 
-PYTHON = -I/usr/include/python2.6/ -L/usr/lib -lpython2.6
+PYTHON = -I/usr/include/python2.7/ -L/usr/lib -lpython2.7
 OBJ = sniff.o net_util.o http_parse.o\
 	  http.o data_send.o user_config.o\
 	  qs_parse.o urlparser.o stringProcess.o\
